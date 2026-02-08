@@ -8,6 +8,45 @@ function log(level, msg, data = {}) {
   else console.log(LOG_PREFIX, JSON.stringify(entry));
 }
 
+/**
+ * Converts flat request body to nested { inputs, alignment, constants } shape.
+ * Accepts either flat (top-level keys) or nested (body.inputs) format.
+ */
+function normalizeBody(body) {
+  if (body && typeof body.inputs === "object" && body.inputs !== null) {
+    return body;
+  }
+  const flat = body || {};
+  const walkthroughFootages = flat.walkthrough_footages ?? flat.walthrough_footages;
+  return {
+    inputs: {
+      brand_logo_url: flat.brand_logo_url,
+      property_address_url: flat.property_address_url,
+      avatar_intro_video: {
+        url: flat.avatar_intro_video_url,
+        duration: flat.avatar_intro_video_duration,
+      },
+      avatar_cta_video: {
+        url: flat.avatar_cta_video_url,
+        duration: flat.avatar_cta_video_duration,
+      },
+      walkthrough_voiceover: {
+        url: flat.walkthrough_voiceover_url,
+        public_url: flat.walkthrough_voiceover_url,
+        audio_duration_seconds: flat.walkthrough_voiceover_duration,
+      },
+      walkthrough_footages: (Array.isArray(walkthroughFootages) ? walkthroughFootages : []).map((f) =>
+        typeof f === "object" && f !== null
+          ? { ...f, video_url: f.video_url ?? f.url }
+          : f
+      ),
+      transcription: Array.isArray(flat.transcription) ? flat.transcription : flat.transcription ?? [],
+    },
+    alignment: flat.alignment ?? {},
+    constants: flat.constants ?? {},
+  };
+}
+
 module.exports = function handler(req, res) {
   const body = typeof req.body === "object" && req.body !== null ? req.body : {};
   log("info", "request_start", {
@@ -27,7 +66,8 @@ module.exports = function handler(req, res) {
   }
 
   try {
-    const result = assemble(body);
+    const normalizedBody = normalizeBody(body);
+    const result = assemble(normalizedBody);
 
     if (!result.ok) {
       log("info", "assemble_failed", {
