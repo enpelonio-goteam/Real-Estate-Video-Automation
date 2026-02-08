@@ -9,10 +9,12 @@ function log(level, msg, data = {}) {
 }
 
 module.exports = function handler(req, res) {
+  const body = typeof req.body === "object" && req.body !== null ? req.body : {};
   log("info", "request_start", {
     method: req.method,
     hasBody: !!req.body,
-    bodyKeys: req.body && typeof req.body === "object" ? Object.keys(req.body) : [],
+    bodyKeys: Object.keys(body),
+    body,
   });
 
   if (req.method !== "POST") {
@@ -25,7 +27,6 @@ module.exports = function handler(req, res) {
   }
 
   try {
-    const body = typeof req.body === "object" && req.body !== null ? req.body : {};
     const result = assemble(body);
 
     if (!result.ok) {
